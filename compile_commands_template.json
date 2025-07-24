@@ -1,19 +1,19 @@
 [
     {
       "directory": "$PWD",
-      "command": "clang++ -Isrc -o build/a.o -c src/a.cpp -include src/compile.cpp -DCLANGD_TL_a",
+      "command": "clang++ -Isrc -o build/a.o -c src/a.cpp -include src/compile.cpp -DCLANGD_TU_a",
       "file": "src/a.cpp",
       "output": "build/a.o"
     },
     {
       "directory": "$PWD",
-      "command": "clang++ -Isrc -o build/b.o -c src/b.cpp -include src/compile.cpp -DCLANGD_TL_b",
+      "command": "clang++ -Isrc -o build/b.o -c src/b.cpp -include src/compile.cpp -DCLANGD_TU_b",
       "file": "src/b.cpp",
       "output": "build/b.o"
     },
     {
       "directory": "$PWD",
-      "command": "clang++ -Isrc -o build/main.o -c src/main.cpp -include src/compile.cpp -DCLANGD_TL_main",
+      "command": "clang++ -Isrc -o build/main.o -c src/main.cpp -include src/compile.cpp -DCLANGD_TU_main",
       "file": "src/main.cpp",
       "output": "build/main.o"
     }

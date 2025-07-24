@@ -5,14 +5,14 @@
 
 #define fn
 
-#ifndef CLANGD_TL_a
+#ifndef CLANGD_TU_a
 #include "a.cpp"
 #endif
 
-#ifndef CLANGD_TL_b
+#ifndef CLANGD_TU_b
 #include "b.cpp"
 #endif
 
-#ifndef CLANGD_TL_main
+#ifndef CLANGD_TU_main
 #include "main.cpp"
 #endif
