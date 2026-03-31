@@ -7,22 +7,42 @@ timeit() {
     time bash -c "$@"
 }
 
+CXXFLAGS=${CXXFLAGS:-}
+CXX=${CXX:-clang++}
 BUILD_DIR=${BUILD_DIR:-build}
-NO_PYTHON=${NO_PYTHON:-0}
+CODEGEN=${CODEGEN:-0}
+CODEGEN_SCRIPT=${SCRIPT:-./scripts/compile.py}
 COMMAND=${COMMAND:-"build"}
+EXTRAFLAGS=${EXTRAFLAGS:-"-g"}
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        --no-python)
-            NO_PYTHON=1
-            shift 1
+        debug)
+            EXTRAFLAGS="-g"
+            shift
+            ;;
+        release)
+            EXTRAFLAGS="-O3"
+            shift
+            ;;
+        release-debuginfo)
+            EXTRAFLAGS="-O3 -g"
+            shift
+            ;;
+        --codegen)
+            CODEGEN=1
+            shift
+            ;;
+        --codegen-script)
+            CODEGEN_SCRIPT=$1
+            shift 2
             ;;
         -o|--build-dir)
             BUILD_DIR="$2"
             shift 2
             ;;
         -h|--help)
-            echo "Usage: $0 [command] [-o|--build-dir <arg>] [--no-python] [-h|--help]"
+            echo "Usage: $0 [command] [-o|--build-dir <arg>] [--codegen] [-h|--help]"
             echo "command can be one of 'build' or 'clean'"
             echo "if no command given, then 'build' is assumed"
             exit 0
@@ -44,7 +64,15 @@ function build() {
     cat src/*.cpp | sed -n 's/^fn \(.*\){/\1;/p' > src/meta/fns.h
     cat src/*.cpp | sed -n 's/^struct \(.*\){/struct \1;/p' > src/meta/types.h
     sed "s|\"directory\": \"\$PWD\"|\"directory\": \"${PWD}\"|g" compile_commands_template.json > compile_commands.json
-    timeit 'clang++ -Isrc src/compile.cpp -o build/main'
+
+    CXX_CMD="$CODEGEN_SCRIPT"
+    if [[ $CODEGEN -ne 1 ]] ; then
+        CXX_CMD=$CXX
+    fi
+
+    CXX=$CXX \
+        BUILD_DIR=$BUILD_DIR \
+        timeit "${CXX_CMD} -Isrc src/compile.cpp ${EXTRAFLAGS} -o $BUILD_DIR/main"
 }
 
 case $COMMAND in
