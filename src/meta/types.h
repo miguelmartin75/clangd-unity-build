@@ -1,1 +1,0 @@
-struct Vec2 ;

@@ -7,13 +7,17 @@ timeit() {
     time bash -c "$@"
 }
 
+SRC_DIR=src
+RUN=${RUN:0}
 CXXFLAGS=${CXXFLAGS:-}
 CXX=${CXX:-clang++}
 BUILD_DIR=${BUILD_DIR:-build}
 CODEGEN=${CODEGEN:-0}
 CODEGEN_SCRIPT=${SCRIPT:-./scripts/compile.py}
-COMMAND=${COMMAND:-"build"}
+COMMAND=${COMMAND:-""}
+CXXSTD=${CXXSTD="-std=c++17"}
 EXTRAFLAGS=${EXTRAFLAGS:-"-g"}
+COMPILE_COMMANDS=${COMPILE_COMMANDS:-0}
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -29,8 +33,16 @@ while [[ $# -gt 0 ]]; do
             EXTRAFLAGS="-O3 -g"
             shift
             ;;
-        --codegen)
+        -r|--run)
+            RUN=1
+            shift
+            ;;
+        -g|--gen)
             CODEGEN=1
+            shift
+            ;;
+        -cc|--compile-commands)
+            COMPILE_COMMANDS=1
             shift
             ;;
         --codegen-script)
@@ -48,11 +60,23 @@ while [[ $# -gt 0 ]]; do
             exit 0
             ;;
         *)
-            COMMAND=$1
-            shift
+            if [[ $COMMAND == "" ]]; then
+                COMMAND=$1
+                shift
+            else
+                break
+            fi
             ;;
     esac
 done
+
+if [[ $COMMAND == "" ]]; then
+    COMMAND="build"
+fi
+
+function setup() {
+    uv sync
+}
 
 function clean() {
     rm -r build
@@ -60,24 +84,31 @@ function clean() {
 
 function build() {
     mkdir -p build
-    mkdir -p src/meta
-    cat src/*.cpp | sed -n 's/^fn \(.*\){/\1;/p' > src/meta/fns.h
-    cat src/*.cpp | sed -n 's/^struct \(.*\){/struct \1;/p' > src/meta/types.h
-    sed "s|\"directory\": \"\$PWD\"|\"directory\": \"${PWD}\"|g" compile_commands_template.json > compile_commands.json
-
     CXX_CMD="$CODEGEN_SCRIPT"
-    if [[ $CODEGEN -ne 1 ]] ; then
+    if (( $CODEGEN != 1 && $COMPILE_COMMANDS != 1 )); then
         CXX_CMD=$CXX
     fi
 
-    CXX=$CXX \
-        BUILD_DIR=$BUILD_DIR \
-        timeit "${CXX_CMD} -Isrc src/compile.cpp ${EXTRAFLAGS} -o $BUILD_DIR/main"
+    export CXX
+    export BUILD_DIR
+    export SRC_DIR
+    export CODEGEN
+    export COMPILE_COMMANDS
+    timeit "${CXX_CMD} -Isrc src/compile.cpp ${EXTRAFLAGS} ${CXXSTD} -o $BUILD_DIR/main"
+    if [[ $RUN -eq 1 ]]; then
+        echo "--------------"
+        echo "^ compile logs"
+        echo "  running  ..."
+        echo "v run logs    "
+        echo "=============>"
+        echo "args=" $@
+        $BUILD_DIR/main $@
+    fi
 }
 
 case $COMMAND in
-    clean|build)
-        $COMMAND
+    setup|clean|build)
+        $COMMAND $@
         ;;
     *)
         echo "unknown command: $COMMAND"

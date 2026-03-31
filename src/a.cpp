@@ -1,6 +1,6 @@
-fn void foo() {
-    printf("foo\n");
+void foo(Vec2 v) {
+    printf("foo v.x=%d, v.y=%d\n", v.x, v.y);
 }
-fn void bar() {
+void bar() {
     printf("bar\n");
 }
