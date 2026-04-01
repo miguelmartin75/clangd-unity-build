@@ -127,5 +127,5 @@ def get_unity_src_deps(args: ParsedCxxArgs, sys_paths: list[str]) -> tuple[str, 
         for lineno, incl in no_path:
             print(f"{result.compile_src}:{lineno}: {incl}")
 
-    result.local_srcs = [x[0] for x in result.src_deps if x is not None and not x[-1]]
+    result.local_srcs = [x[0] for x in result.src_deps if x is not None and not x[-1] and SRC_DIR in x[1]]
     return result

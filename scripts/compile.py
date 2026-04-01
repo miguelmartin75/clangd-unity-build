@@ -38,7 +38,7 @@ if COMPILE_COMMANDS:
     with open("compile_commands.json", "w") as out_f:
         json.dump(compile_commands, out_f, indent=2)
 
-if CODEGEN:
+if CODEGEN and not srcs.compile_src.startswith("tests/"):
     parse_args = args.args
 
     index = Index.create()
@@ -50,13 +50,19 @@ if CODEGEN:
         CursorKind.CLASS_DECL: "class",
     }
 
+    gen_dir = os.path.join(SRC_DIR, "gen")
     seen = set()
     proto_fns = []
     proto_types = []
     enum_infos = []
     for c in tu.cursor.walk_preorder():
         # skip generated files
-        if c.location.file is not None and c.location.file.name.startswith("src/gen"):
+        if c.location.file is not None and (c.location.file.name.startswith(gen_dir)):
+            continue
+
+        if c.location.file is not None and not c.location.file.name.startswith(SRC_DIR) and not "catch2" in c.location.file.name.lower():
+            print(c.location.file)
+            breakpoint()
             continue
 
         if c.kind.is_declaration():
@@ -98,6 +104,7 @@ if CODEGEN:
             # useful props:
             # c.raw_comment
 
+    # TODO: target?
     os.makedirs(os.path.join(SRC_DIR, "gen"), exist_ok=True)
     with open(os.path.join(SRC_DIR, "gen/fwd.h"), "w") as out_f:
         out_f.write("/** WARNING: this is generated code **/\n\n")
@@ -107,6 +114,7 @@ if CODEGEN:
         out_f.write("/* functions */\n")
         out_f.write("\n".join(proto_fns))
 
+    # TODO: target?
     with open(os.path.join(SRC_DIR, "gen/rtti.cpp"), "w") as out_f:
         out_f.write("/** WARNING: this is generated code **/\n\n")
         for enum in enum_infos:

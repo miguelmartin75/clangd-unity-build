@@ -1,29 +1,17 @@
 #!/bin/bash
 set -euo pipefail
 
-log() {
-    if (( $VERBOSE == 1 )); then
-        echo "$@"
-    fi
-}
-
-timeit() {
-    export TIMEFORMAT='took: %3Rs'
-    if (( $VERBOSE == 1 )); then
-        echo "exec: $@"
-        time bash -c "$@"
-    else
-        bash -c "$@"
-    fi
-}
-
 SRC_DIR=src
+TEST_DIR=tests
 BUILD_DIR="build"
 
 VERBOSE=${VERBOSE:-1}
-CXXFLAGS=${CXXFLAGS:-}
-CXXSTD=${CXXSTD="-std=c++17"}
 CXX=${CXX:-clang++}
+CXXSTD=${CXXSTD:-"-std=c++17"}
+CXXFLAGS=${CXXFLAGS:-}
+
+PKG_CONFIG=${PKG_CONFIG:-pkg-config}
+CATCH2_PC=${CATCH2_PC:-catch2-with-main}
 
 # flags
 CODEGEN_SCRIPT="./scripts/compile.py"
@@ -126,6 +114,22 @@ export SRC_DIR
 export CODEGEN
 export COMPILE_COMMANDS
 
+log() {
+    if (( $VERBOSE == 1 )); then
+        echo "$@"
+    fi
+}
+
+timeit() {
+    export TIMEFORMAT='took: %3Rs'
+    if (( $VERBOSE == 1 )); then
+        echo "exec: $@"
+        time bash -c "$@"
+    else
+        bash -c "$@"
+    fi
+}
+
 function setup() {
     uv sync
 }
@@ -137,15 +141,26 @@ function clean() {
 
 function test() {
     mkdir -p $BUILD_DIR
-    log "test"
-    log "BUILD_TARGETS=${BUILD_TARGETS}"
-    # timeit "${CXX_CMD} -Isrc src/compile.cpp ${EXTRAFLAGS} ${CXXSTD} -o $BUILD_DIR/main"
+    log ": tests"
+    for target in ${BUILD_TARGETS}; do
+        log ".. building $target"
+        CATCH2_CFLAGS=$($PKG_CONFIG --cflags $CATCH2_PC 2>/dev/null)
+        CATCH2_LIBS=$($PKG_CONFIG --libs --static $CATCH2_PC 2>/dev/null)
+        out_file=$BUILD_DIR/test_${target}
+        timeit "${CXX_CMD} -I./ -I${SRC_DIR} ${CATCH2_CFLAGS} ${CATCH2_LIBS} -DTESTS ${TEST_DIR}/compile_${target}.cpp ${EXTRAFLAGS} ${CXXSTD} -o $out_file"
+        if [[ $RUN -eq 1 ]]; then
+            log "--- ^ compile logs ---"
+            log ""
+            log "$ $out_file"
+            ${out_file} $@
+        fi
+    done
 }
 
 function build() {
     mkdir -p $BUILD_DIR
+    echo ": build"
     for target in ${BUILD_TARGETS}; do
-        # TODO: if not silent?
         log ".. building $target"
         timeit "${CXX_CMD} -I${SRC_DIR} ${SRC_DIR}/compile_${target}.cpp ${EXTRAFLAGS} ${CXXSTD} -o $BUILD_DIR/${target}"
         if [[ $RUN -eq 1 ]]; then
