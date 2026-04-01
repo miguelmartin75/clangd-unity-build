@@ -1,26 +1,58 @@
 #!/bin/bash
 set -euo pipefail
 
+log() {
+    if (( $VERBOSE == 1 )); then
+        echo "$@"
+    fi
+}
+
 timeit() {
     export TIMEFORMAT='took: %3Rs'
-    echo "exec: $@"
-    time bash -c "$@"
+    if (( $VERBOSE == 1 )); then
+        echo "exec: $@"
+        time bash -c "$@"
+    else
+        bash -c "$@"
+    fi
 }
 
 SRC_DIR=src
-RUN=${RUN:0}
+BUILD_DIR="build"
+
+VERBOSE=${VERBOSE:-1}
 CXXFLAGS=${CXXFLAGS:-}
-CXX=${CXX:-clang++}
-BUILD_DIR=${BUILD_DIR:-build}
-CODEGEN=${CODEGEN:-0}
-CODEGEN_SCRIPT=${SCRIPT:-./scripts/compile.py}
-COMMAND=${COMMAND:-""}
 CXXSTD=${CXXSTD="-std=c++17"}
-EXTRAFLAGS=${EXTRAFLAGS:-"-g"}
-COMPILE_COMMANDS=${COMPILE_COMMANDS:-0}
+CXX=${CXX:-clang++}
+
+# flags
+CODEGEN_SCRIPT="./scripts/compile.py"
+COMPILE_COMMANDS=0
+BUILD_TESTS=0
+CODEGEN=0
+RUN=0
+BUILD_TARGETS=()
+EXTRAFLAGS=""
+COMMAND=""
+
+ALL_TARGETS=("main")
+DEFAULT_TARGET="main"
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
+        all)
+            if (( ${#BUILD_TARGETS[@]} != 0 )); then
+                echo "[WARN] all & targets provided"
+                shift
+            else
+                BUILD_TARGETS=${ALL_TARGETS}
+                shift
+            fi
+            ;;
+        ${ALL_TARGETS})
+            BUILD_TARGETS+=($1)
+            shift
+            ;;
         debug)
             EXTRAFLAGS="-g"
             shift
@@ -31,6 +63,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         release-debuginfo)
             EXTRAFLAGS="-O3 -g"
+            shift
+            ;;
+        -q|--quiet)
+            VERBOSE=0
             shift
             ;;
         -r|--run)
@@ -70,49 +106,63 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
+if (( ${#BUILD_TARGETS[@]} == 0 )); then
+    BUILD_TARGETS+=($DEFAULT_TARGET)
+fi
+
 if [[ $COMMAND == "" ]]; then
     COMMAND="build"
 fi
+
+
+CXX_CMD="$CODEGEN_SCRIPT"
+if (( $CODEGEN != 1 && $COMPILE_COMMANDS != 1 )); then
+    CXX_CMD=$CXX
+fi
+
+export CXX
+export BUILD_DIR
+export SRC_DIR
+export CODEGEN
+export COMPILE_COMMANDS
 
 function setup() {
     uv sync
 }
 
 function clean() {
-    rm -r build
+    rm -rf build
+    rm -f compile_commands.json
+}
+
+function test() {
+    mkdir -p $BUILD_DIR
+    log "test"
+    log "BUILD_TARGETS=${BUILD_TARGETS}"
+    # timeit "${CXX_CMD} -Isrc src/compile.cpp ${EXTRAFLAGS} ${CXXSTD} -o $BUILD_DIR/main"
 }
 
 function build() {
-    mkdir -p build
-    CXX_CMD="$CODEGEN_SCRIPT"
-    if (( $CODEGEN != 1 && $COMPILE_COMMANDS != 1 )); then
-        CXX_CMD=$CXX
-    fi
-
-    export CXX
-    export BUILD_DIR
-    export SRC_DIR
-    export CODEGEN
-    export COMPILE_COMMANDS
-    timeit "${CXX_CMD} -Isrc src/compile.cpp ${EXTRAFLAGS} ${CXXSTD} -o $BUILD_DIR/main"
-    if [[ $RUN -eq 1 ]]; then
-        echo "--------------"
-        echo "^ compile logs"
-        echo "  running  ..."
-        echo "v run logs    "
-        echo "=============>"
-        echo "args=" $@
-        $BUILD_DIR/main $@
-    fi
+    mkdir -p $BUILD_DIR
+    for target in ${BUILD_TARGETS}; do
+        # TODO: if not silent?
+        log ".. building $target"
+        timeit "${CXX_CMD} -I${SRC_DIR} ${SRC_DIR}/compile_${target}.cpp ${EXTRAFLAGS} ${CXXSTD} -o $BUILD_DIR/${target}"
+        if [[ $RUN -eq 1 ]]; then
+            log "--- ^ compile logs ---"
+            log ""
+            log "$ $BUILD_DIR/${target} $@"
+            $BUILD_DIR/${target} $@
+        fi
+    done
 }
 
 case $COMMAND in
-    setup|clean|build)
-        $COMMAND $@
+    test|setup|clean|build)
+        $COMMAND "$@"
         ;;
     *)
         echo "unknown command: $COMMAND"
         exit 1
         ;;
 esac
-

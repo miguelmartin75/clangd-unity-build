@@ -31,6 +31,10 @@ srcs = get_unity_src_deps(args=args, sys_paths=sys_paths)
 
 if COMPILE_COMMANDS:
     compile_commands = get_compile_commands(args=args, repo_root=repo_root, srcs=srcs.local_srcs, compile_src=srcs.compile_src)
+    existing = json.load(open("compile_commands.json")) if os.path.exists("compile_commands.json") else {}
+    cc_by_file = {x["file"]: x for x in compile_commands}
+    cc_by_file.update({x["file"]: x for x in existing})
+    compile_commands = list(cc_by_file.values())
     with open("compile_commands.json", "w") as out_f:
         json.dump(compile_commands, out_f, indent=2)
 

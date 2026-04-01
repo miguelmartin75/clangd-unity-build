@@ -30,11 +30,8 @@ assert BUILD_DIR is not None, "BUILD_DIR not in environ"
 SRC_DIR = os.environ.get("SRC_DIR")
 assert SRC_DIR is not None, "SRC_DIR not in environ"
 
-COMPILE_COMMANDS = os.environ.get("COMPILE_COMMANDS")
-assert COMPILE_COMMANDS is not None, "COMPILE_COMMANDS not in environ"
-
-CODEGEN = os.environ.get("CODEGEN")
-assert CODEGEN is not None, "CODEGEN not in environ"
+COMPILE_COMMANDS = int(os.environ.get("COMPILE_COMMANDS", "0")) != 0
+CODEGEN = int(os.environ.get("CODEGEN", "0")) != 0
 
 def get_sys_paths():
     sys_path_cmd = f"{CXX} -E -v - < /dev/null 2>&1 | sed -n '/#include </,/End of search list./p'"
@@ -108,7 +105,6 @@ def compile_cmd(src: str, args: ParsedCxxArgs, repo_root: str, srcs: list[str], 
 
 def get_compile_commands(args: ParsedCxxArgs, repo_root: str, srcs: list[str], compile_src: str):
     return [compile_cmd(x, args, repo_root, srcs, compile_src) for x in srcs]
-
 
 def get_unity_src_deps(args: ParsedCxxArgs, sys_paths: list[str]) -> tuple[str, list[str]]:
     assert len(args.srcs) == 1 and "compile" in args.srcs[0], f"expected 1 unity src file, got: {args.srcs}"
