@@ -9,7 +9,7 @@ struct Rtti_Enum_Type;
 struct Rtti_Enum_Type_Array;
 
 /* functions */
-bool rtti_lookup_enum_value(String8 enum_name, String8 enum_value, int * value);
+bool rtti_lookup_enum_value(String8 enum_name, String8 enum_value, Rtti_Enum_Value * value);
 void foo(Vec2 v);
 void bar();
 void foobar(Vec2 v);

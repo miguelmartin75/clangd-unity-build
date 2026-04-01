@@ -12,13 +12,13 @@ int main(int argc, char** argv) {
 
     if(argc >= 3) {
         printf("lookup up enum\n");
-        int64_t value;
+        Rtti_Enum_Value value = {};
         String8 n = S8_CSTR(argv[1]);
         String8 v = S8_CSTR(argv[2]);
         if(!rtti_lookup_enum_value(n, v, &value)) {
             printf("enum: %s %s DNE\n", n.data, v.data);
         } else {
-            printf("enum: %s %s = %lld\n", n.data, v.data, value);
+            printf("enum: %s %s = %lld\n", n.data, v.data, value.value);
         }
     }
 
