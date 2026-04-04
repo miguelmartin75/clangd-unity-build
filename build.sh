@@ -7,7 +7,7 @@ BUILD_DIR="build"
 
 VERBOSE=${VERBOSE:-1}
 CXX=${CXX:-clang++}
-CXXSTD=${CXXSTD:-"-std=c++17"}
+CXXSTD=${CXXSTD:-"-std=c++14"}
 CXXFLAGS=${CXXFLAGS:-}
 
 PKG_CONFIG=${PKG_CONFIG:-pkg-config}
@@ -159,7 +159,7 @@ function test() {
 
 function build() {
     mkdir -p $BUILD_DIR
-    echo ": build"
+    log ": build"
     for target in ${BUILD_TARGETS}; do
         log ".. building $target"
         timeit "${CXX_CMD} -I${SRC_DIR} ${SRC_DIR}/compile_${target}.cpp ${EXTRAFLAGS} ${CXXSTD} -o $BUILD_DIR/${target}"
