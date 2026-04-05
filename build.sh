@@ -2,7 +2,7 @@
 set -euo pipefail
 
 error() {
-    echo $@
+    echo "[ERROR]: $@"
     exit 1
 }
 
@@ -14,6 +14,7 @@ VERBOSE=${VERBOSE:-1}
 CXX=${CXX:-clang++}
 CXX_STD=${CXX_STD:-"-std=c++17"}
 CXXFLAGS=${CXXFLAGS:-}
+DEV=${DEV:-0}
 
 PKG_CONFIG=${PKG_CONFIG:-pkg-config}
 CATCH2_PC=${CATCH2_PC:-catch2-with-main}
@@ -82,6 +83,10 @@ while [[ $# -gt 0 ]]; do
             RUN_ARGS="$@"
             break
             ;;
+        --dev)
+            DEV=1
+            shift
+            ;;
         -g|--gen)
             CODEGEN=1
             shift
@@ -121,6 +126,16 @@ done
 
 ((${#BUILD_TARGETS[@]})) || BUILD_TARGETS+=("$DEFAULT_TARGET")
 : "${COMMAND:=build}"
+
+if (( $DEV == 1 )); then
+    CODEGEN=1
+    COMPILE_COMMANDS=1
+fi
+
+if (( $LAZY != 0 && $CODEGEN != 1 )); then
+    error "--lazy (LAZY=1) needs -g|--codegen (CODEGEN=1)"
+fi
+
 
 CXX_CMD="$CODEGEN_SCRIPT"
 if (( $CODEGEN != 1 && $COMPILE_COMMANDS != 1 )); then
