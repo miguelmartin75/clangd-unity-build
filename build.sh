@@ -12,7 +12,7 @@ BUILD_DIR="build"
 
 VERBOSE=${VERBOSE:-1}
 CXX=${CXX:-clang++}
-CXXSTD=${CXXSTD:-"-std=c++17"}
+CXX_STD=${CXX_STD:-"-std=c++17"}
 CXXFLAGS=${CXXFLAGS:-}
 
 PKG_CONFIG=${PKG_CONFIG:-pkg-config}
@@ -25,7 +25,7 @@ BUILD_TESTS=0
 CODEGEN=0
 RUN=0
 BUILD_TARGETS=()
-EXTRAFLAGS=""
+CONFIG_CXXFLAGS=""
 COMMAND=""
 
 ALL_TARGETS=("main" "test_main")
@@ -47,7 +47,7 @@ while [[ $# -gt 0 ]]; do
                 shift
             fi
             ;;
-        ${ALL_TARGETS})
+        *"${ALL_TARGETS[@]}"*)
             if [[ $COMMAND -eq "" ]]; then
                 COMMAND="build"
             fi
@@ -57,13 +57,13 @@ while [[ $# -gt 0 ]]; do
         -c|--config)
             case $2 in
                 debug|Debug)
-                    EXTRAFLAGS="-g"
+                    CONFIG_CXXFLAGS="-g"
                     ;;
                 release|Release)
-                    EXTRAFLAGS="-O3"
+                    CONFIG_CXXFLAGS="-O3"
                     ;;
                 release-debuginfo|ReleaseWithDebug)
-                    EXTRAFLAGS="-O3 -g"
+                    CONFIG_CXXFLAGS="-O3 -g"
                     ;;
                 *)
                     echo "unknown config: $2"
@@ -150,7 +150,7 @@ build-unity() {
 
     mkdir -p $BUILD_DIR
     log ": building $target"
-    timeit "${CXX_CMD} -I${SRC_DIR} ${SRC_DIR}/compile_${target}.cpp ${EXTRAFLAGS} ${CXXSTD} -o $BUILD_DIR/${target}"
+    timeit "${CXX_CMD} -I${SRC_DIR} ${SRC_DIR}/compile_${target}.cpp ${CONFIG_CXXFLAGS} ${CXX_STD} -o $BUILD_DIR/${target}"
     if [[ $RUN -eq 1 ]]; then
         log "--- ^ compile logs ---"
         log ""
@@ -167,7 +167,7 @@ test-unity() {
 
     log ".. building tests/$target"
     out_file=$BUILD_DIR/test_${target}
-    timeit "${CXX_CMD} -I./ -I${SRC_DIR} ${CATCH2_CFLAGS} ${CATCH2_LIBS} -DTESTS ${TEST_DIR}/compile_${target}.cpp ${EXTRAFLAGS} ${CXXSTD} -o $out_file"
+    timeit "${CXX_CMD} -I./ -I${SRC_DIR} ${CATCH2_CFLAGS} ${CATCH2_LIBS} -DTESTS ${TEST_DIR}/compile_${target}.cpp ${CONFIG_CXXFLAGS} ${CXX_STD} -o $out_file"
     if [[ $RUN -eq 1 ]]; then
         log "--- ^ compile logs ---"
         log ""
