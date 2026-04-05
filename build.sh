@@ -94,7 +94,7 @@ while [[ $# -gt 0 ]]; do
             CODEGEN_SCRIPT=$1
             shift 2
             ;;
-        --lazy)
+        -l|--lazy)
             LAZY=1
             shift
             ;;
@@ -205,7 +205,6 @@ case $COMMAND in
         $COMMAND "$@"
         ;;
     *)
-        echo "unknown command: $COMMAND"
-        exit 1
+        error "unknown command: $COMMAND"
         ;;
 esac
