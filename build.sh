@@ -135,6 +135,20 @@ timeit() {
     fi
 }
 
+build-unity() {
+    target=$1
+
+    mkdir -p $BUILD_DIR
+    log ": building $target"
+    timeit "${CXX_CMD} -I${SRC_DIR} ${SRC_DIR}/compile_${target}.cpp ${EXTRAFLAGS} ${CXXSTD} -o $BUILD_DIR/${target}"
+    if [[ $RUN -eq 1 ]]; then
+        log "--- ^ compile logs ---"
+        log ""
+        log "$ $BUILD_DIR/${target} $@"
+        $BUILD_DIR/${target} $@
+    fi
+}
+
 test-unity() {
     target=$1
 
@@ -149,20 +163,6 @@ test-unity() {
         log ""
         log "$ $out_file"
         ${out_file} $@
-    fi
-}
-
-build-unity() {
-    target=$1
-
-    mkdir -p $BUILD_DIR
-    log ": building $target"
-    timeit "${CXX_CMD} -I${SRC_DIR} ${SRC_DIR}/compile_${target}.cpp ${EXTRAFLAGS} ${CXXSTD} -o $BUILD_DIR/${target}"
-    if [[ $RUN -eq 1 ]]; then
-        log "--- ^ compile logs ---"
-        log ""
-        log "$ $BUILD_DIR/${target} $@"
-        $BUILD_DIR/${target} $@
     fi
 }
 

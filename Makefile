@@ -5,13 +5,14 @@ CONFIG ?= Debug
 
 VERBOSE ?= 1
 CXX ?= clang++
-CXXSTD ?= -std=c++14
+CXXSTD ?= -std=c++17
 CXX_STD ?= $(CXXSTD)
 PKG_CONFIG ?= pkg-config
 CATCH2_PC ?= catch2-with-main
 CODEGEN_SCRIPT ?= ./scripts/compile.py
 CODEGEN ?= 0
 COMPILE_COMMANDS ?= 0
+RUN ?= 0
 ARGS ?=
 
 ifeq ($(CONFIG),Debug)
@@ -46,19 +47,26 @@ endif
 
 export BUILD_DIR SRC_DIR CXX CODEGEN COMPILE_COMMANDS
 
-.PHONY: all main tests test-main run run-tests setup clean
+.PHONY: all main tests test-main setup clean
 all: main
-main: $(BUILD_DIR)/main
-tests: test-main
-test-main: $(BUILD_DIR)/test_main
 
-run: main
+main: | $(BUILD_DIR)
+	$(LOG) ".. building main"
+	$(Q)$(CXX_CMD) $(EXE_CXXFLAGS) $(SRC_DIR)/compile_main.cpp -o $(BUILD_DIR)/main
+ifeq ($(RUN),1)
 	$(LOG) "$(BUILD_DIR)/main $(ARGS)"
 	$(Q)./$(BUILD_DIR)/main $(ARGS)
+endif
 
-run-tests: test-main
+tests: test-main
+
+test-main: | $(BUILD_DIR)
+	$(LOG) ".. building test-main"
+	$(Q)$(CXX_CMD) $(TEST_CXXFLAGS) $(CATCH2_CFLAGS) $(TEST_DIR)/compile_main.cpp $(CATCH2_LIBS) -o $(BUILD_DIR)/test_main
+ifeq ($(RUN),1)
 	$(LOG) "$(BUILD_DIR)/test_main $(ARGS)"
 	$(Q)./$(BUILD_DIR)/test_main $(ARGS)
+endif
 
 setup:
 	$(Q)uv sync
@@ -69,11 +77,3 @@ clean:
 
 $(BUILD_DIR):
 	$(Q)mkdir -p $@
-
-$(BUILD_DIR)/main: $(SRC_DIR)/compile_main.cpp | $(BUILD_DIR)
-	$(LOG) ".. building main"
-	$(Q)$(CXX_CMD) $(EXE_CXXFLAGS) $< -o $@
-
-$(BUILD_DIR)/test_main: $(TEST_DIR)/compile_main.cpp | $(BUILD_DIR)
-	$(LOG) ".. building test-main"
-	$(Q)$(CXX_CMD) $(TEST_CXXFLAGS) $(CATCH2_CFLAGS) $< $(CATCH2_LIBS) -o $@
