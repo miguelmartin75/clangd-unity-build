@@ -8,7 +8,7 @@ import clang
 from pathlib import Path
 from clang.cindex import Index, CursorKind #, PrintingPolicy
 
-repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 sys.path.insert(0, repo_root)
 
 from scripts.cxx import (

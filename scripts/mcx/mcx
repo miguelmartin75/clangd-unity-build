@@ -20,7 +20,7 @@ PKG_CONFIG=${PKG_CONFIG:-pkg-config}
 CATCH2_PC=${CATCH2_PC:-catch2-with-main}
 
 # flags
-CODEGEN_SCRIPT="./scripts/compile.py"
+CODEGEN_SCRIPT="./scripts/mcx/compile.py"
 COMPILE_COMMANDS=0
 BUILD_TESTS=0
 LAZY=0
