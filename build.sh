@@ -1,6 +1,11 @@
 #!/bin/bash
 set -euo pipefail
 
+error() {
+    echo $@
+    exit 1
+}
+
 SRC_DIR=src
 TEST_DIR=tests
 BUILD_DIR="build"
@@ -29,15 +34,23 @@ DEFAULT_TARGET="main"
 while [[ $# -gt 0 ]]; do
     case "$1" in
         all)
+            if [[ $COMMAND != "" && $COMMAND != "build" ]]; then
+                error "expected command to be empty or build"
+            fi
+            COMMAND="build"
+
             if (( ${#BUILD_TARGETS[@]} != 0 )); then
                 echo "[WARN] all & targets provided"
                 shift
             else
-                BUILD_TARGETS=${ALL_TARGETS}
+                BUILD_TARGETS=${ALL_TARGETS[@]}
                 shift
             fi
             ;;
         ${ALL_TARGETS})
+            if [[ $COMMAND -eq "" ]]; then
+                COMMAND="build"
+            fi
             BUILD_TARGETS+=($1)
             shift
             ;;
@@ -65,6 +78,8 @@ while [[ $# -gt 0 ]]; do
         -r|--run)
             RUN=1
             shift
+            RUN_ARGS="$@"
+            break
             ;;
         -g|--gen)
             CODEGEN=1
@@ -99,14 +114,8 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-if (( ${#BUILD_TARGETS[@]} == 0 )); then
-    BUILD_TARGETS+=($DEFAULT_TARGET)
-fi
-
-if [[ $COMMAND == "" ]]; then
-    COMMAND="all"
-fi
-
+((${#BUILD_TARGETS[@]})) || BUILD_TARGETS+=("$DEFAULT_TARGET")
+: "${COMMAND:=build}"
 
 CXX_CMD="$CODEGEN_SCRIPT"
 if (( $CODEGEN != 1 && $COMPILE_COMMANDS != 1 )); then
@@ -119,6 +128,7 @@ export SRC_DIR
 export CODEGEN
 export COMPILE_COMMANDS
 
+# * utils *
 log() {
     if (( $VERBOSE == 1 )); then
         echo "$@"
@@ -131,7 +141,7 @@ timeit() {
         echo "exec: $@"
         time bash -c "$@"
     else
-        bash -c "$@"
+        "$@"
     fi
 }
 
@@ -144,8 +154,8 @@ build-unity() {
     if [[ $RUN -eq 1 ]]; then
         log "--- ^ compile logs ---"
         log ""
-        log "$ $BUILD_DIR/${target} $@"
-        $BUILD_DIR/${target} $@
+        log "$ $BUILD_DIR/${target} ${RUN_ARGS}"
+        $BUILD_DIR/${target} ${RUN_ARGS}
     fi
 }
 
@@ -161,42 +171,36 @@ test-unity() {
     if [[ $RUN -eq 1 ]]; then
         log "--- ^ compile logs ---"
         log ""
-        log "$ $out_file"
-        ${out_file} $@
+        log "$ $out_file ${RUN_ARGS}"
+        ${out_file} ${RUN_ARGS}
     fi
 }
 
+# * commands *
 setup() {
     uv sync
 }
 
 clean() {
-    rm -rf build
+    rm -rf ${BUILD_DIR}
     rm -f compile_commands.json
 }
 
+build() {
+    log "build ..."
+    local t
+    for t in ${BUILD_TARGETS};
+    do
+        $t
+    done
+}
+
+# * targets *
 test_main() { test-unity main; }
 main() { build-unity main; }
 
-build() {
-    log "build ..."
-    for t in ${BUILD_TARGETS};
-    do
-        main
-    done
-}
-
-tests() {
-    mkdir -p $BUILD_DIR
-    log "tests ..."
-    for target in ${BUILD_TARGETS}; do
-        test_${target}
-    done
-}
-all() { log "all ..."; build; tests; }
-
 case $COMMAND in
-    ${ALL_TARGETS}|all|build|tests|setup|clean|build)
+    build|tests|setup|clean)
         $COMMAND "$@"
         ;;
     *)
