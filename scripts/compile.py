@@ -16,6 +16,7 @@ from scripts.cxx import (
     BUILD_DIR,
     SRC_DIR,
     COMPILE_COMMANDS,
+    LAZY,
     CODEGEN,
     ParsedCxxArgs,
     parse_cxx_args,
@@ -38,6 +39,10 @@ if COMPILE_COMMANDS:
     with open("compile_commands.json", "w") as out_f:
         json.dump(compile_commands, out_f, indent=2)
 
+if LAZY and not CODEGEN:
+    print("[ERROR] need LAZY=1 (--lazy) and CODEGEN=1 (-g|--gen)", file=sys.stderr, flush=True)
+    sys.exit(1)
+
 if CODEGEN and not srcs.compile_src.startswith("tests/"):
     parse_args = args.args
 
@@ -51,6 +56,7 @@ if CODEGEN and not srcs.compile_src.startswith("tests/"):
     }
 
     gen_dir = os.path.join(SRC_DIR, "gen")
+    all_source_files = set()
     seen = set()
     proto_fns = []
     proto_types = []
@@ -61,9 +67,10 @@ if CODEGEN and not srcs.compile_src.startswith("tests/"):
             continue
 
         if c.location.file is not None and not c.location.file.name.startswith(SRC_DIR) and not "catch2" in c.location.file.name.lower():
-            print(c.location.file)
-            breakpoint()
             continue
+
+        if c.location.file is not None:
+            all_source_files.add(c.location.file.name)
 
         if c.kind.is_declaration():
             if c.spelling in seen:
@@ -150,5 +157,19 @@ if CODEGEN and not srcs.compile_src.startswith("tests/"):
             out_f.write("    .len = 0\n")
             out_f.write("};\n")
 
-result = subprocess.run([CXX] + args.args)  # compile
-raise SystemExit(result.returncode)
+perform_compile = not LAZY
+if LAZY:
+    out_path = args.output_file
+    if not os.path.exists(out_path):
+        perform_compile = True
+    else:
+        out_mtime = os.path.getmtime(out_path)
+        source_files_mtime = [os.path.getmtime(x) for x in all_source_files]
+        if any(out_mtime < src_mtime for src_mtime in source_files_mtime):
+            perform_compile = True
+        else:
+            print(f"{out_path} is up to date")
+
+if perform_compile:
+    result = subprocess.run([CXX] + args.args)  # compile
+    sys.exit(result.returncode)

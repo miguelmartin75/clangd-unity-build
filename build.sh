@@ -22,6 +22,7 @@ CATCH2_PC=${CATCH2_PC:-catch2-with-main}
 CODEGEN_SCRIPT="./scripts/compile.py"
 COMPILE_COMMANDS=0
 BUILD_TESTS=0
+LAZY=0
 CODEGEN=0
 RUN=0
 BUILD_TARGETS=()
@@ -93,6 +94,10 @@ while [[ $# -gt 0 ]]; do
             CODEGEN_SCRIPT=$1
             shift 2
             ;;
+        --lazy)
+            LAZY=1
+            shift
+            ;;
         -o|--build-dir)
             BUILD_DIR="$2"
             shift 2
@@ -122,11 +127,7 @@ if (( $CODEGEN != 1 && $COMPILE_COMMANDS != 1 )); then
     CXX_CMD=$CXX
 fi
 
-export CXX
-export BUILD_DIR
-export SRC_DIR
-export CODEGEN
-export COMPILE_COMMANDS
+export CXX BUILD_DIR SRC_DIR CODEGEN COMPILE_COMMANDS LAZY
 
 # * utils *
 log() {

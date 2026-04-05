@@ -17,6 +17,7 @@ class UnitySrcDeps:
     compile_src: str
     src_deps: list[str]
     local_srcs: list[str]
+    direct_includes: list[str]
 
 
 VALID_EXTS = {".cpp", ".c", ".mm", ".m", ".cc"}
@@ -32,6 +33,7 @@ assert SRC_DIR is not None, "SRC_DIR not in environ"
 
 COMPILE_COMMANDS = int(os.environ.get("COMPILE_COMMANDS", "0")) != 0
 CODEGEN = int(os.environ.get("CODEGEN", "0")) != 0
+LAZY = int(os.environ.get("LAZY", "0")) != 0
 
 def get_sys_paths():
     sys_path_cmd = f"{CXX} -E -v - < /dev/null 2>&1 | sed -n '/#include </,/End of search list./p'"
@@ -113,15 +115,16 @@ def get_unity_src_deps(args: ParsedCxxArgs, sys_paths: list[str]) -> tuple[str, 
         compile_src=None,
         src_deps=None,
         local_srcs=None,
+        direct_includes=None,
     )
     result.compile_src = args.srcs[0]
-    includes = [
+    result.direct_includes = [
         (i, x[len("#include"):].split("//")[0].split("/*")[0].strip())
         for i, x in enumerate(open(result.compile_src).readlines())
         if x.startswith("#include")
     ]
-    result.src_deps = [expand_path(x, search_paths=args.search_paths, sys_paths=sys_paths) for _, x in includes]
-    no_path = [incl for incl, x in zip(includes, result.src_deps) if x is None]
+    result.src_deps = [expand_path(x, search_paths=args.search_paths, sys_paths=sys_paths) for _, x in result.direct_includes]
+    no_path = [incl for incl, x in zip(result.direct_includes, result.src_deps) if x is None]
     if len(no_path) != 0:
         print("[WARN]: no path found for the following includes:")
         for lineno, incl in no_path:
