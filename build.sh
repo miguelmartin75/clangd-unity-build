@@ -7,7 +7,7 @@ BUILD_DIR="build"
 
 VERBOSE=${VERBOSE:-1}
 CXX=${CXX:-clang++}
-CXXSTD=${CXXSTD:-"-std=c++14"}
+CXXSTD=${CXXSTD:-"-std=c++17"}
 CXXFLAGS=${CXXFLAGS:-}
 
 PKG_CONFIG=${PKG_CONFIG:-pkg-config}
@@ -23,7 +23,7 @@ BUILD_TARGETS=()
 EXTRAFLAGS=""
 COMMAND=""
 
-ALL_TARGETS=("main")
+ALL_TARGETS=("main" "test_main")
 DEFAULT_TARGET="main"
 
 while [[ $# -gt 0 ]]; do
@@ -41,17 +41,22 @@ while [[ $# -gt 0 ]]; do
             BUILD_TARGETS+=($1)
             shift
             ;;
-        debug)
-            EXTRAFLAGS="-g"
-            shift
-            ;;
-        release)
-            EXTRAFLAGS="-O3"
-            shift
-            ;;
-        release-debuginfo)
-            EXTRAFLAGS="-O3 -g"
-            shift
+        -c|--config)
+            case $2 in
+                debug|Debug)
+                    EXTRAFLAGS="-g"
+                    ;;
+                release|Release)
+                    EXTRAFLAGS="-O3"
+                    ;;
+                release-debuginfo|ReleaseWithDebug)
+                    EXTRAFLAGS="-O3 -g"
+                    ;;
+                *)
+                    echo "unknown config: $2"
+                    ;;
+            esac
+            shift 2
             ;;
         -q|--quiet)
             VERBOSE=0
@@ -99,7 +104,7 @@ if (( ${#BUILD_TARGETS[@]} == 0 )); then
 fi
 
 if [[ $COMMAND == "" ]]; then
-    COMMAND="build"
+    COMMAND="all"
 fi
 
 
@@ -130,51 +135,68 @@ timeit() {
     fi
 }
 
-function setup() {
+test-unity() {
+    target=$1
+
+    CATCH2_CFLAGS=$($PKG_CONFIG --cflags $CATCH2_PC 2>/dev/null)
+    CATCH2_LIBS=$($PKG_CONFIG --libs --static $CATCH2_PC 2>/dev/null)
+
+    log ".. building tests/$target"
+    out_file=$BUILD_DIR/test_${target}
+    timeit "${CXX_CMD} -I./ -I${SRC_DIR} ${CATCH2_CFLAGS} ${CATCH2_LIBS} -DTESTS ${TEST_DIR}/compile_${target}.cpp ${EXTRAFLAGS} ${CXXSTD} -o $out_file"
+    if [[ $RUN -eq 1 ]]; then
+        log "--- ^ compile logs ---"
+        log ""
+        log "$ $out_file"
+        ${out_file} $@
+    fi
+}
+
+build-unity() {
+    target=$1
+
+    mkdir -p $BUILD_DIR
+    log ": building $target"
+    timeit "${CXX_CMD} -I${SRC_DIR} ${SRC_DIR}/compile_${target}.cpp ${EXTRAFLAGS} ${CXXSTD} -o $BUILD_DIR/${target}"
+    if [[ $RUN -eq 1 ]]; then
+        log "--- ^ compile logs ---"
+        log ""
+        log "$ $BUILD_DIR/${target} $@"
+        $BUILD_DIR/${target} $@
+    fi
+}
+
+setup() {
     uv sync
 }
 
-function clean() {
+clean() {
     rm -rf build
     rm -f compile_commands.json
 }
 
-function test() {
-    CATCH2_CFLAGS=$($PKG_CONFIG --cflags $CATCH2_PC 2>/dev/null)
-    CATCH2_LIBS=$($PKG_CONFIG --libs --static $CATCH2_PC 2>/dev/null)
+test_main() { test-unity main; }
+main() { build-unity main; }
 
-    mkdir -p $BUILD_DIR
-    log ": tests"
-    for target in ${BUILD_TARGETS}; do
-        log ".. building $target"
-        out_file=$BUILD_DIR/test_${target}
-        timeit "${CXX_CMD} -I./ -I${SRC_DIR} ${CATCH2_CFLAGS} ${CATCH2_LIBS} -DTESTS ${TEST_DIR}/compile_${target}.cpp ${EXTRAFLAGS} ${CXXSTD} -o $out_file"
-        if [[ $RUN -eq 1 ]]; then
-            log "--- ^ compile logs ---"
-            log ""
-            log "$ $out_file"
-            ${out_file} $@
-        fi
+build() {
+    log "build ..."
+    for t in ${BUILD_TARGETS};
+    do
+        main
     done
 }
 
-function build() {
+tests() {
     mkdir -p $BUILD_DIR
-    log ": build"
+    log "tests ..."
     for target in ${BUILD_TARGETS}; do
-        log ".. building $target"
-        timeit "${CXX_CMD} -I${SRC_DIR} ${SRC_DIR}/compile_${target}.cpp ${EXTRAFLAGS} ${CXXSTD} -o $BUILD_DIR/${target}"
-        if [[ $RUN -eq 1 ]]; then
-            log "--- ^ compile logs ---"
-            log ""
-            log "$ $BUILD_DIR/${target} $@"
-            $BUILD_DIR/${target} $@
-        fi
+        test_${target}
     done
 }
+all() { log "all ..."; build; tests; }
 
 case $COMMAND in
-    test|setup|clean|build)
+    ${ALL_TARGETS}|all|build|tests|setup|clean|build)
         $COMMAND "$@"
         ;;
     *)
