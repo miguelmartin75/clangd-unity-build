@@ -140,12 +140,13 @@ function clean() {
 }
 
 function test() {
+    CATCH2_CFLAGS=$($PKG_CONFIG --cflags $CATCH2_PC 2>/dev/null)
+    CATCH2_LIBS=$($PKG_CONFIG --libs --static $CATCH2_PC 2>/dev/null)
+
     mkdir -p $BUILD_DIR
     log ": tests"
     for target in ${BUILD_TARGETS}; do
         log ".. building $target"
-        CATCH2_CFLAGS=$($PKG_CONFIG --cflags $CATCH2_PC 2>/dev/null)
-        CATCH2_LIBS=$($PKG_CONFIG --libs --static $CATCH2_PC 2>/dev/null)
         out_file=$BUILD_DIR/test_${target}
         timeit "${CXX_CMD} -I./ -I${SRC_DIR} ${CATCH2_CFLAGS} ${CATCH2_LIBS} -DTESTS ${TEST_DIR}/compile_${target}.cpp ${EXTRAFLAGS} ${CXXSTD} -o $out_file"
         if [[ $RUN -eq 1 ]]; then
